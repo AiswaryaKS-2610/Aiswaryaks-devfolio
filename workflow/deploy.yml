@@ -1,0 +1,27 @@
+name: Deploy Portfolio to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Setup SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H 3.252.55.212 >> ~/.ssh/known_hosts
+
+    - name: Deploy portfolio
+      run: |
+        ssh -i ~/.ssh/id_rsa ec2-user@3.252.55.212 "rm -rf /home/ec2-user/Aiswaryaks-devfolio/*"
+        scp -i ~/.ssh/id_rsa -r ./* ec2-user@3.252.55.212:/home/ec2-user/Aiswaryaks-devfolio/
+        ssh -i ~/.ssh/id_rsa ec2-user@3.252.55.212 "sudo docker stop portfolio-site || true && sudo docker rm portfolio-site || true && sudo docker run -d -p 80:80 -v /home/ec2-user/Aiswaryaks-devfolio:/usr/share/nginx/html --name portfolio-site nginx"
